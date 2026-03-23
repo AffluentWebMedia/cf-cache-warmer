@@ -20,13 +20,16 @@ jobs:
           curl -A "Mozilla/5.0" -L -s "https://astrologyfutureeye.com/formjs/afe-v-3.6.8.js" > /dev/null
           sleep 1
 
-      - name: Fetch sitemap
+      - name: Fetch sitemap.txt
         run: |
-          curl -s "https://astrologyfutureeye.com/sitemap.xml" -o sitemap.xml
+          curl -s "https://astrologyfutureeye.com/sitemap.txt" -o urls.txt
 
-      - name: Extract URLs
+      - name: Debug URLs
         run: |
-          grep -o '<loc>[^<]*</loc>' sitemap.xml | sed 's/<loc>//;s/<\/loc>//' > urls.txt
+          echo "Total URLs:"
+          wc -l urls.txt
+          echo "First few URLs:"
+          head -n 5 urls.txt
 
       - name: Limit URLs
         run: |
