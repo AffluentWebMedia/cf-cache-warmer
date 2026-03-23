@@ -13,32 +13,29 @@ jobs:
       - name: Warm CSS and JS
         run: |
           echo "Warming CSS..."
-          curl -A "Mozilla/5.0" -L -s https://astrologyfutureeye.com/css/afe-v-6.1.5.css > /dev/null
+          curl -A "Mozilla/5.0" -L -s "https://astrologyfutureeye.com/css/afe-v-6.1.5.css" > /dev/null
           sleep 1
 
           echo "Warming JS..."
-          curl -A "Mozilla/5.0" -L -s https://astrologyfutureeye.com/formjs/afe-v-3.6.8.js > /dev/null
+          curl -A "Mozilla/5.0" -L -s "https://astrologyfutureeye.com/formjs/afe-v-3.6.8.js" > /dev/null
           sleep 1
 
       - name: Fetch sitemap
         run: |
-          curl -s https://astrologyfutureeye.com/sitemap.xml -o sitemap.xml
+          curl -s "https://astrologyfutureeye.com/sitemap.xml" -o sitemap.xml
 
       - name: Extract URLs
         run: |
           grep -o '<loc>[^<]*</loc>' sitemap.xml | sed 's/<loc>//;s/<\/loc>//' > urls.txt
 
-      - name: Filter URLs
-        run: |
-          grep -Ev "wp-admin|wp-login|cart|checkout|my-account|feed|preview=|add-to-cart=|\.xml" urls.txt > filtered.txt
-
       - name: Limit URLs
         run: |
-          head -n 250 filtered.txt > warm_urls.txt
+          head -n 250 urls.txt > warm_urls.txt
 
-      - name: Warm cache (with delay)
+      - name: Warm cache with delay
         run: |
-          while read url; do
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
             echo "Fetching $url"
             curl -A "Mozilla/5.0" -L -s "$url" > /dev/null
             sleep 0.4
