@@ -22,7 +22,7 @@ jobs:
 
       - name: Fetch sitemap.txt
         run: |
-          curl -s "https://astrologyfutureeye.com/sitemap.txt" -o urls.txt
+          curl -s "https://astrologyfutureeye.com/Sitemap.txt" -o urls.txt
 
       - name: Debug URLs
         run: |
