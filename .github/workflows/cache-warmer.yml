@@ -10,132 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Run cache warmer
+      - name: Warm CSS and JS
         run: |
-          python << 'PY'
-          import time
-          import requests
-          import xml.etree.ElementTree as ET
-          from urllib.parse import urlparse
+          echo "Warming CSS..."
+          curl -A "Mozilla/5.0" -L -s https://astrologyfutureeye.com/css/afe-v-6.1.5.css > /dev/null
+          sleep 1
 
-          ORIGIN = "https://astrologyfutureeye.com"
-          SITEMAP_URL = f"{ORIGIN}/sitemap.xml"
+          echo "Warming JS..."
+          curl -A "Mozilla/5.0" -L -s https://astrologyfutureeye.com/formjs/afe-v-3.6.8.js > /dev/null
+          sleep 1
 
-          CSS_URL = f"{ORIGIN}/css/afe-v-6.1.5.css"
-          JS_URL = f"{ORIGIN}/formjs/afe-v-3.6.8.js"
+      - name: Fetch sitemap
+        run: |
+          curl -s https://astrologyfutureeye.com/sitemap.xml -o sitemap.xml
 
-          MAX_URLS = 250
-          DELAY = 0.35
-          TIMEOUT = 20
+      - name: Extract URLs
+        run: |
+          grep -oP '(?<=<loc>).*?(?=</loc>)' sitemap.xml > urls.txt
 
-          session = requests.Session()
-          session.headers.update({
-              "User-Agent": "AFE-GitHub-CacheWarmer/1.0"
-          })
+      - name: Filter URLs
+        run: |
+          grep -Ev "wp-admin|wp-login|cart|checkout|my-account|feed|preview=|add-to-cart=|\.xml" urls.txt > filtered.txt
 
-          def should_warm(url):
-              try:
-                  p = urlparse(url)
-                  if p.netloc not in ["astrologyfutureeye.com", "www.astrologyfutureeye.com"]:
-                      return False
+      - name: Limit URLs
+        run: |
+          head -n 250 filtered.txt > warm_urls.txt
 
-                  path = p.path.lower()
-                  query = p.query.lower()
-
-                  blocked_prefixes = [
-                      "/wp-admin",
-                      "/wp-login.php",
-                      "/cart",
-                      "/checkout",
-                      "/my-account",
-                      "/feed",
-                      "/comments",
-                  ]
-
-                  if any(path.startswith(x) for x in blocked_prefixes):
-                      return False
-
-                  if path.endswith(".xml"):
-                      return False
-
-                  if "preview=" in query:
-                      return False
-
-                  if "add-to-cart=" in query:
-                      return False
-
-                  if query.startswith("s="):
-                      return False
-
-                  return True
-              except:
-                  return False
-
-          def fetch_xml(url):
-              r = session.get(url, timeout=TIMEOUT, allow_redirects=True)
-              r.raise_for_status()
-              return ET.fromstring(r.text)
-
-          def collect_urls(start_sitemap, max_urls):
-              queue = [start_sitemap]
-              seen_sitemaps = set()
-              seen_urls = []
-
-              while queue and len(seen_urls) < max_urls:
-                  sm = queue.pop(0)
-                  if sm in seen_sitemaps:
-                      continue
-                  seen_sitemaps.add(sm)
-
-                  try:
-                      root = fetch_xml(sm)
-                  except Exception as e:
-                      print(f"Failed sitemap: {sm} -> {e}")
-                      continue
-
-                  for elem in root.iter():
-                      tag = elem.tag.lower()
-                      if tag.endswith("loc") and elem.text:
-                          loc = elem.text.strip()
-
-                          if loc.endswith(".xml") or "sitemap" in loc.lower():
-                              if loc not in seen_sitemaps:
-                                  queue.append(loc)
-                          else:
-                              if should_warm(loc) and loc not in seen_urls:
-                                  seen_urls.append(loc)
-                                  if len(seen_urls) >= max_urls:
-                                      break
-
-              return seen_urls
-
-          def warm(url):
-              try:
-                  r = session.get(url, timeout=TIMEOUT, allow_redirects=True)
-                  print(f"{r.status_code} {url}")
-              except Exception as e:
-                  print(f"ERR {url} -> {e}")
-
-          print("Warming CSS...")
-          warm(CSS_URL)
-          time.sleep(DELAY)
-
-          print("Warming JS...")
-          warm(JS_URL)
-          time.sleep(DELAY)
-
-          print("Reading sitemap...")
-          urls = collect_urls(SITEMAP_URL, MAX_URLS)
-          print(f"Collected {len(urls)} URLs")
-
-          for url in urls:
-              warm(url)
-              time.sleep(DELAY)
-
-          print("Done.")
-          PY
+      - name: Warm cache (with delay)
+        run: |
+          while read url; do
+            echo "Fetching $url"
+            curl -A "Mozilla/5.0" -L -s "$url" > /dev/null
+            sleep 0.4
+          done < warm_urls.txt
