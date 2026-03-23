@@ -51,7 +51,7 @@ jobs:
                  -H "X-Cache-Warmer: ${{ secrets.CACHE_WARMER_KEY }}" \
                  -L -s "$url" > /dev/null
 
-            sleep 0.4
+            sleep 0.8
           done < warm_urls.txt
 
       - name: Check cache status (per URL)
