@@ -26,7 +26,7 @@ jobs:
 
       - name: Extract URLs
         run: |
-          grep -oP '(?<=<loc>).*?(?=</loc>)' sitemap.xml > urls.txt
+          grep -o '<loc>[^<]*</loc>' sitemap.xml | sed 's/<loc>//;s/<\/loc>//' > urls.txt
 
       - name: Filter URLs
         run: |
