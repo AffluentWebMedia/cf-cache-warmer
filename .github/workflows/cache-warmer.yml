@@ -10,18 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Warm CSS and JS
+      - name: Warm CSS, JS and Image
         run: |
           echo "Warming CSS..."
           curl -A "AFE-CacheWarmer" \
                -H "X-Cache-Warmer: ${{ secrets.CACHE_WARMER_KEY }}" \
-               -L -s "https://astrologyfutureeye.com/css/afe-v-6.1.5.css" > /dev/null
+               -s -D - -o /dev/null "https://astrologyfutureeye.com/css/afe-v-6.1.5.css" | grep -i cf-cache-status
           sleep 1
 
           echo "Warming JS..."
           curl -A "AFE-CacheWarmer" \
                -H "X-Cache-Warmer: ${{ secrets.CACHE_WARMER_KEY }}" \
-               -L -s "https://astrologyfutureeye.com/formjs/afe-v-3.6.8.js" > /dev/null
+               -s -D - -o /dev/null "https://astrologyfutureeye.com/formjs/afe-v-3.6.8.js" | grep -i cf-cache-status
+          sleep 1
+
+          echo "Warming Image..."
+          curl -A "AFE-CacheWarmer" \
+               -H "X-Cache-Warmer: ${{ secrets.CACHE_WARMER_KEY }}" \
+               -s -D - -o /dev/null "https://astrologyfutureeye.com/images/header/afe-1.png" | grep -i cf-cache-status
           sleep 1
 
       - name: Fetch Sitemap.txt
@@ -39,31 +45,22 @@ jobs:
 
       - name: Limit URLs
         run: |
-          head -n 250 urls.txt > warm_urls.txt
+          head -n 500 urls.txt > warm_urls.txt
 
-      - name: Warm cache with delay
+      - name: Warm + Check cache (single request per URL)
         run: |
-          while IFS= read -r url; do
-            [ -z "$url" ] && continue
-            echo "Fetching $url"
-
-            curl -A "AFE-CacheWarmer" \
-                 -H "X-Cache-Warmer: ${{ secrets.CACHE_WARMER_KEY }}" \
-                 -L -s "$url" > /dev/null
-
-            sleep 0.8
-          done < warm_urls.txt
-
-      - name: Check cache status (per URL)
-        run: |
-          echo "Checking cache status..."
+          echo "Warming pages and checking cache..."
 
           while IFS= read -r url; do
             [ -z "$url" ] && continue
 
-            status=$(curl -I -A "AFE-CacheWarmer" \
+            headers=$(curl -A "AFE-CacheWarmer" \
               -H "X-Cache-Warmer: ${{ secrets.CACHE_WARMER_KEY }}" \
-              -s "$url" | grep -i cf-cache-status)
+              -s -D - -o /dev/null "$url")
+
+            status=$(echo "$headers" | grep -i cf-cache-status)
 
             echo "$url → $status"
+
+            sleep 0.8
           done < warm_urls.txt
